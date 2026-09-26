@@ -1,0 +1,4 @@
+project_id = "wmzohezdtddfhyucrjki"
+
+[functions.plfix-chat]
+verify_jwt = false
