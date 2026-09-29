@@ -20,6 +20,19 @@ const priceLabel = (row: Record<string, unknown>) => {
   return row.price_type === 'from' ? `a partir de ${formatted}` : formatted
 }
 
+const safeFallback = (message: string, normalized: string) => {
+  if (/iphone/.test(normalized) && /(tela preta|sem imagem|nao liga|nao inicia)/.test(normalized)) {
+    return 'Isso pode estar ligado à tela, ao flex, à bateria, à carga ou ao circuito da placa. Teste assim: 1) pressione e solte rapidamente aumentar volume; 2) pressione e solte rapidamente diminuir volume; 3) mantenha somente o botão lateral pressionado até aparecer a maçã. Se não responder, deixe carregando por até uma hora. Se ele tocar ou vibrar sem imagem, a tela ou a conexão podem precisar de avaliação. Se continuar igual, chame a PL Fix Cell no WhatsApp.'
+  }
+  if (/(samsung|galaxy)/.test(normalized) && /(tela preta|sem imagem|nao liga|nao inicia)/.test(normalized)) {
+    return 'Isso pode estar ligado à tela, bateria, carga, conector ou placa. Verifique o cabo, o carregador e a tomada; deixe carregar por pelo menos 30 minutos; depois mantenha o botão lateral e diminuir volume pressionados por pelo menos 7 segundos. Se o aparelho tocar ou vibrar sem imagem, a tela pode precisar de avaliação. Se continuar sem responder, chame a PL Fix Cell no WhatsApp.'
+  }
+  if (/(tela preta|sem imagem|nao liga|nao inicia)/.test(normalized)) {
+    return 'Isso pode estar ligado à tela, bateria, carga, conector ou placa. Verifique o cabo, o carregador e a tomada, deixe carregar por pelo menos 30 minutos e mantenha o botão liga/desliga pressionado. Não abra nem aqueça o aparelho. Se continuar sem responder, chame a PL Fix Cell no WhatsApp para uma avaliação.'
+  }
+  return `Não consegui concluir a análise agora. Para não deixar você sem atendimento, envie esta dúvida no WhatsApp da PL Fix Cell: ${message}`
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405)
@@ -107,7 +120,7 @@ Seu escopo é exclusivamente: celulares, defeitos, troca de tela, placa, reballi
 Recuse educadamente qualquer assunto fora desse escopo.
 Nunca invente preço, estoque, diagnóstico definitivo, prazo ou garantia. Valores só podem vir da LISTA OFICIAL abaixo. Se não houver correspondência clara, diga que o valor ainda não está cadastrado e ofereça o WhatsApp.
 Ao receber um defeito, faça TRIAGEM, não diagnóstico. Estruture a resposta assim: (1) o que pode estar acontecendo, usando "pode ser"; (2) até três testes seguros e simples; (3) quando procurar avaliação técnica. Faça no máximo uma pergunta curta se faltar o modelo ou um detalhe decisivo.
-Para iPhone com tela preta ou que não liga: sugira, quando apropriado, aumentar volume e soltar, diminuir volume e soltar, depois segurar o botão lateral até aparecer a maçã; se não responder, carregar por até uma hora. Se tocar, vibrar ou emitir sons sem imagem, diga que tela, flex ou conexão podem precisar de avaliação. Se não houver sinal algum, bateria, carga, conector ou circuito/placa são possibilidades.
+Para iPhone com tela preta ou que não liga: sugira, quando apropriado, esta sequência exata: pressione e solte rapidamente o botão de aumentar volume; pressione e solte rapidamente o botão de diminuir volume; depois mantenha somente o botão lateral pressionado até aparecer a maçã. Nunca diga para pressionar os três botões simultaneamente. Se não responder, carregar por até uma hora. Se tocar, vibrar ou emitir sons sem imagem, diga que tela, flex ou conexão podem precisar de avaliação. Se não houver sinal algum, bateria, carga, conector ou circuito/placa são possibilidades.
 Para Android com tela preta ou que não liga: sugira verificar cabo, carregador e tomada, carregar por pelo menos 30 minutos e manter o botão liga/desliga pressionado. Para Samsung Galaxy, sugira botão lateral + diminuir volume por pelo menos 7 segundos. Se o aparelho tocar sem imagem, a tela pode precisar de avaliação.
 Nunca mande abrir o aparelho, aquecer, pressionar a tela, furar bateria, usar arroz ou fazer ponte elétrica. Se houver líquido, bateria estufada, cheiro de queimado ou aquecimento forte, oriente parar de usar e desconectar do carregador imediatamente.
 Quando houver provável falha física ou os testes não resolverem, finalize convidando a pessoa a chamar a PL Fix Cell no WhatsApp para avaliação.
@@ -137,11 +150,17 @@ ${settings?.ai_system_note ? `\nORIENTAÇÃO DO ADMINISTRADOR:\n${settings.ai_sy
     })
     if (!groqResponse.ok) {
       console.error('Groq error', groqResponse.status, await groqResponse.text())
-      return json({ error: 'A assistente está temporariamente indisponível. Tente novamente.' }, 502)
+      const reply = safeFallback(message, normalizedMessage)
+      await db.from('chat_messages').insert({ session_id: session.id, role: 'assistant', content: reply })
+      return json({ reply, sessionId: session.id, showWhatsApp: true, whatsappMessage: `Olá! Fiz a triagem pelo assistente da PL Fix Cell. Meu aparelho apresenta este problema: ${message}` })
     }
     const completion = await groqResponse.json()
     const answer = clean(completion?.choices?.[0]?.message?.content, 1500)
-    if (!answer) return json({ error: 'Não foi possível gerar uma resposta agora.' }, 502)
+    if (!answer) {
+      const reply = safeFallback(message, normalizedMessage)
+      await db.from('chat_messages').insert({ session_id: session.id, role: 'assistant', content: reply })
+      return json({ reply, sessionId: session.id, showWhatsApp: true, whatsappMessage: `Olá! Fiz a triagem pelo assistente da PL Fix Cell. Meu aparelho apresenta este problema: ${message}` })
+    }
     await db.from('chat_messages').insert({ session_id: session.id, role: 'assistant', content: answer })
     return json({
       reply: answer,
