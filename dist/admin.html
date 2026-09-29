@@ -19,7 +19,7 @@
       <div class="brand">PL <span>Fix Cell</span></div>
       <h1>Painel administrativo</h1>
       <p class="muted">Entre com o e-mail autorizado para gerenciar preços, leads e a assistente.</p>
-      <div class="field"><label for="login-email">E-mail</label><input id="login-email" type="email" value="plfix@concerto.com" required autocomplete="email"></div>
+      <div class="field"><label for="login-email">E-mail</label><input id="login-email" type="email" value="plfixcell@fix.com.br" required autocomplete="email"></div>
       <div class="field"><label for="login-password">Senha</label><input id="login-password" type="password" minlength="8" required autocomplete="current-password"></div>
       <button class="btn" type="submit">Entrar</button>
       <button class="btn secondary" id="signup-button" type="button">Criar primeiro acesso</button>
@@ -68,7 +68,7 @@
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
     const SUPABASE_URL='https://wmzohezdtddfhyucrjki.supabase.co';
     const SUPABASE_KEY='sb_publishable_IRUlAmvb56k9WT32fdC2Tg_ILGDnUNw';
-    const ADMIN_EMAIL='plfix@concerto.com';
+    const ADMIN_EMAIL='plfixcell@fix.com.br';
     const supabase=createClient(SUPABASE_URL,SUPABASE_KEY);
     const $=id=>document.getElementById(id);let cache={prices:[],leads:[],chama:[],inventory:[],storeProducts:[],faq:[]},pendingStoreImage='';
     const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
